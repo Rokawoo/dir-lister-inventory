@@ -1,0 +1,120 @@
+#!/bin/bash
+#
+# a1-top => recurse through a subtree of a filesystem and create a "dir.xml" file in each directory.
+#	Data will be pulled from directory itself and optional README file to fill "dir.xml".
+#
+# Rokawoo
+# Nov 2023
+#
+# GNU bash, version 5.1.16(1)-release (x86_64-pc-linux-gnu) on
+# 5.15.0-83-generic x86_64 GNU/Linux
+
+#If README file exists in current directory, parse data for index and required fields.
+#@Param: Directory to parse - String
+#@Return: Index File and required files separated by a ":", files in required category
+#separated by spaces - String
+function parseREADME {
+	if [ -f "$1/README" ]; then	
+		indexFile=$(awk -F: '/index:/ {print $2}' "$1/README")
+		requiredFiles=$(awk -F: '/required:/ {for (i=2; i <= NF; i++) print $i}' "$1/README")
+		echo "$indexFile:$requiredFiles"
+	else
+		echo ":"
+	fi
+}
+
+#Find unlisted directories in a directory, given a list of known objects
+#@Param: Directory to search - String, Space separated list of known objects - String
+#@Return: Space separated list of unlisted directories - String
+function findUnlistedDirectories {
+	unlistedDirectories=""
+	for directory in $(ls -p "$1" | awk '$NF~/\/$/ {print $NF}' | tr -d '/'); do
+		found=false
+		for listedObject in $(echo $2 | tr ':' ' '); do
+			if [ "$directory" == "$listedObject" ]; then
+				found=true
+				break
+			fi
+		done
+		if [ "$found" == false ]; then
+			unlistedDirectories="$unlistedDirectories $directory"
+		fi
+	done
+	echo "$unlistedDirectories"
+}
+
+#Find unlisted files in a directory, given a list of known objects
+#@Param: Directory to search - String, Space separated list of known objects - String
+#@Return: Space separated list of unlisted files (excluding dir.xml) - String
+function findUnlistedFiles {
+	unlistedFiles=""
+	for file in $(ls -p "$1" | awk -F/ '$NF!~/\/$/ && $NF!="dir.xml" {print $NF}'); do
+		found=false
+		for listedObject in $(echo $2 | tr ':' ' '); do
+			if [ "$file" == "$listedObject" ]; then
+				found=true
+				break
+			fi
+		done
+		if [ "$found" == false ]; then
+			unlistedFiles="$unlistedFiles $file"
+		fi
+	done
+	echo "$unlistedFiles"
+}
+
+#Comprise contents of dir.xml contents based on what data exists
+#@Param: Space separated lists: Index File, Required Files, Directories, Files - String
+#@Return: Formatted contents of dir.xml - String
+function makeXmlContent {
+	echo '<?xml version="1.0" encoding="ISO-8859-1"?>'
+	echo '<direntry>'
+	if [ -n "$1" ]; then
+		echo '	<index>'
+		echo "		<file>$1</file>"
+		echo '	</index>'
+	fi
+	if [ -n "$2" ]; then
+		echo '	<required>'
+		for file in $2; do
+			echo "		<file>$file</file>"
+		done
+		echo '	</required>'
+	fi
+	if [ -n "$3" ] || [ -n "$4" ]; then
+		echo '	<other>'
+		for directory in $3; do
+			echo "		<dir>$directory</dir>"
+		done
+		for file in $4; do
+			echo "		<file>$file</file>"
+		done
+		echo '	</other>'
+	fi
+	echo '</direntry>'
+}
+
+#MAIN
+parentDirectory="${1:-$(pwd)}"
+
+if [ -d "$parentDirectory" ]; then
+	subDirectories=$(ls -R "$parentDirectory" | grep '/')
+
+	for subDirectory in $subDirectories; do
+		subDirectory="${subDirectory%:}"
+
+		readmeData=$(parseREADME "$subDirectory")
+		indexFile="${readmeData%:*}"
+		requiredFiles="${readmeData#*:}"
+		unlistedDirectories=$(findUnlistedDirectories "$subDirectory" "$readmeData")
+		unlistedFiles=$(findUnlistedFiles "$subDirectory" "$readmeData")
+		
+		xmlContent=$(makeXmlContent "$indexFile" "$requiredFiles" "$unlistedDirectories" "$unlistedFiles")
+		echo "$xmlContent" > $subDirectory/dir.xml
+
+	done
+	exit 0
+else
+	echo "Directory => $parentDirectory does not exist."
+	exit 1
+fi
