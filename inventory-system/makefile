@@ -1,20 +1,20 @@
 cc := gcc
 FLAGS :=
-TARGET := 265inventory
+TARGET := Inventory
 
 view : 
-	less 265inventory.c
+	less Inventory.c
 
 build : $(TARGET)
 
-$(TARGET) : 265inventory.o
+$(TARGET) : Inventory.o
 			$(cc) $(FLAGS) -o $@ $^
 
-265inventory.o : 265inventory.c
+Inventory.o : Inventory.c
 	$(cc) $(FLAGS) -c -o $@ $<
 
 .PHONY: clean cleanall
 
 clean :
 		-\rm -f *.o
-		-\rm -f 265inventory
+		-\rm -f Inventory

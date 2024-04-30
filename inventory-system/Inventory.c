@@ -1,5 +1,5 @@
 /*******************************************************
- * 265inventory.c - interactive utility that maintains a database
+ * Inventory.c - interactive utility that maintains a database
  *
  * Rokawoo
  * Nov 2023

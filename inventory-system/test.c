@@ -17,7 +17,7 @@ char* parseId(char* args);
 unsigned short parseQty(char* args);
 
 int main() {
-   char args[15] = "add FxcG312:23";
+   char args[15] = "add UncaffinatedCoffeTable:23";
    int a = parseCommand(args);
    char* b = parseId(args);
    unsigned short c = parseQty(args);
